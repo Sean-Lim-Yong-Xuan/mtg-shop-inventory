@@ -15,7 +15,7 @@ client = MongoClient(MONGO_URI)
 
 
 #client = MongoClient("mongodb+srv://Sean:12345@magicdahtebahse.lfcpi.mongodb.net/")
-db = client["mtgdb"]
+db = client["localdb"]
 collection = db["allmtgcards"]
 
 # Streamlit App
