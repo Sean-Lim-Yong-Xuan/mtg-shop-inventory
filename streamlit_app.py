@@ -1,66 +1,92 @@
-import altair as alt
-import pandas as pd
 import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+import plotly.express as px
+import seaborn as sns
+from pymongo import MongoClient
 
-# Show the page title and description.
-st.set_page_config(page_title="Movies dataset", page_icon="🎬")
-st.title("🎬 Movies dataset")
-st.write(
-    """
-    This app visualizes data from [The Movie Database (TMDB)](https://www.kaggle.com/datasets/tmdb/tmdb-movie-metadata).
-    It shows which movie genre performed best at the box office over the years. Just 
-    click on the widgets below to explore!
-    """
-)
+# MongoDB Connection
+MONGO_URI = "mongodb://localhost:27017/"
+client = MongoClient(MONGO_URI)
 
-
-# Load the data from a CSV. We're caching this so it doesn't reload every time the app
-# reruns (e.g. if the user interacts with the widgets).
-@st.cache_data
-def load_data():
-    df = pd.read_csv("data/movies_genres_summary.csv")
-    return df
+#Choosing the database and the collection
+#db = client["mtgdb"]
+#collection = db["cards"]
 
 
-df = load_data()
+#client = MongoClient("mongodb+srv://Sean:12345@magicdahtebahse.lfcpi.mongodb.net/")
+db = client["mtgdb"]
+collection = db["allmtgcards"]
 
-# Show a multiselect widget with the genres using `st.multiselect`.
-genres = st.multiselect(
-    "Genres",
-    df.genre.unique(),
-    ["Action", "Adventure", "Biography", "Comedy", "Drama", "Horror"],
-)
+# Streamlit App
+st.title("🃏 MTG Card Inventory")
 
-# Show a slider widget with the years using `st.slider`.
-years = st.slider("Years", 1986, 2006, (2000, 2016))
+# Fetch Data
+#def load_data():
+    #cards = list(collection.find({}, {"_id":0}))
+    #df = pd.DataFrame(cards)
+    #return df
 
-# Filter the dataframe based on the widget input and reshape it.
-df_filtered = df[(df["genre"].isin(genres)) & (df["year"].between(years[0], years[1]))]
-df_reshaped = df_filtered.pivot_table(
-    index="year", columns="genre", values="gross", aggfunc="sum", fill_value=0
-)
-df_reshaped = df_reshaped.sort_values(by="year", ascending=False)
+#df = load_data()
+allmtgcards = list(collection.find({}, {"_id": 0}))  # Exclude ObjectId
 
+def display_data_from_mongodb():
+    """Displays data from MongoDB in Streamlit."""
+    try:
+        collection = db.get_collection("allmtgcards")  # Replace with your collection name
+        data = list(collection.find())
+        if data:
+            df = pd.DataFrame(data)
+            df = df.drop(columns=['_id'], errors='ignore') #remove mongodb's _id
+            st.dataframe(df)
+        else:
+            st.info("No data found in MongoDB.")
+    except Exception as e:
+        st.error(f"Error retrieving data from MongoDB: {e}")
 
-# Display the data as a table using `st.dataframe`.
-st.dataframe(
-    df_reshaped,
-    use_container_width=True,
-    column_config={"year": st.column_config.TextColumn("Year")},
-)
+#Fetching data...
+allmtgcards = list(collection.find({}, {"_id": 0}))
 
-# Display the data as an Altair chart using `st.altair_chart`.
-df_chart = pd.melt(
-    df_reshaped.reset_index(), id_vars="year", var_name="genre", value_name="gross"
-)
-chart = (
-    alt.Chart(df_chart)
-    .mark_line()
-    .encode(
-        x=alt.X("year:N", title="Year"),
-        y=alt.Y("gross:Q", title="Gross earnings ($)"),
-        color="genre:N",
-    )
-    .properties(height=320)
-)
-st.altair_chart(chart, use_container_width=True)
+if allmtgcards:
+    df = pd.DataFrame(allmtgcards)
+    st.info("Successfully connected to MongoDB!!")
+    # Search bar
+    search_query = st.text_input("Search for a card:", "")
+    
+    # Filter options
+    card_types = df["type"].dropna().unique().tolist()
+    colors = df["color_identity"].dropna().unique().tolist()
+    power = df["power"].dropna().unique().tolist()
+    
+    selected_type = st.multiselect("Filter by Type:", card_types)
+    selected_colors = st.multiselect("Filter by Color:", colors)
+    selected_power = st.multiselect("Filter by Power:", power)
+    
+    # Apply filters
+    filtered_df = df.copy()
+    if search_query:
+        filtered_df = filtered_df[filtered_df["name"].str.contains(search_query, case=False, na=False)]
+    if selected_type:
+        filtered_df = filtered_df[filtered_df["type"].isin(selected_type)]
+    if selected_colors:
+        filtered_df = filtered_df[filtered_df["color_identity"].isin(selected_colors)]
+    if selected_power:
+        filtered_df = filtered_df[filtered_df["power"].isin(selected_power)]
+    
+    st.write(f"### Showing {len(filtered_df)} results")
+    st.dataframe(filtered_df)
+    
+    # Visualization
+    chart_option = st.selectbox("Select a chart type:", ["Color Identity Distribution", "Type Distribution", "Power Distribution"])
+    
+    if chart_option == "Color Identity Distribution":
+        st.write ("Data Obtained")
+        fig = px.bar(filtered_df["color_identity"].value_counts().reset_index(), x="color_identity", y="count", title="Color Identity Distribution")
+    #elif chart_option == "Type Distribution":
+        #fig = px.bar(filtered_df["type"].value_counts().reset_index(), x="count", y="Type", title="Type Distribution")
+    #elif chart_option == "Power Distribution":
+        #fig = px.bar(filtered_df["power"].value_counts().reset_index(), x="count", y="Power", title="Power Distribution")
+    else:
+        st.write ("No chart.")
+
+    st.plotly_chart(fig)
