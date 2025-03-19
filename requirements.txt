@@ -1,6 +1,6 @@
 streamlit
 pandas
-pymongo = 4.11.3
+pymongo==4.11.3
 matplotlib
 seaborn
 plotly
