@@ -7,7 +7,7 @@ import pymongo
 from pymongo import MongoClient
 
 # MongoDB Connection
-MONGO_URI = "mongodb://localhost:27017/"
+MONGO_URI = "mongodb://127.0.0.1:27017/"
 client = MongoClient(MONGO_URI)
 
 #Choosing the database and the collection
