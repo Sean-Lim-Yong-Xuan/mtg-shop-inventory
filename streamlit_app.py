@@ -24,7 +24,7 @@ st.title("🃏 MTG Card Inventory")
     #return df
 
 #df = load_data()
-allmtgcards = list(collection.find())  # Exclude ObjectId
+allmtgcards = list(collection.find({}, {"_id": 0}))  # Exclude ObjectId
 
 def display_data_from_mongodb():
     """Displays data from MongoDB in Streamlit."""
