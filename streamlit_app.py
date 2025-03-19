@@ -6,12 +6,32 @@ import seaborn as sns
 import pymongo
 from pymongo import MongoClient
 
+# Initialize connection.
+# Uses st.cache_resource to only run once.
+@st.cache_resource
+def init_connection():
+    return pymongo.MongoClient(**st.secrets["mongo"])
+
+client = init_connection()
+
+# Pull data from the collection.
+# Uses st.cache_data to only rerun when the query changes or after 10 min.
+@st.cache_data(ttl=600)
+def get_data():
+    db = client.localdb
+    items = db.allmtgcards.find()
+    items = list(items)  # make hashable for st.cache_data
+    return items
+
+allmtgcards = get_data()
+
+#My stuff (19/3/2025)
 # MongoDB Connection
 #MONGO_URI = "mongodb://localhost:27017/"
-client = pymongo.MongoClient("mongodb://localhost:27017/")
+#client = pymongo.MongoClient("mongodb://localhost:27017/") this
 
-db = client["localdb"]
-collection = db["allmtgcards"]
+#db = client["localdb"] this
+#collection = db["allmtgcards"] this
 
 # Streamlit App
 st.title("🃏 MTG Card Inventory")
@@ -23,7 +43,7 @@ st.title("🃏 MTG Card Inventory")
     #return df
 
 #df = load_data()
-allmtgcards = list(collection.find({}, {"_id": 0}))  # Exclude ObjectId
+#allmtgcards = list(collection.find({}, {"_id": 0}))  # Exclude ObjectId
 
 def display_data_from_mongodb():
     """Displays data from MongoDB in Streamlit."""
