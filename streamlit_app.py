@@ -10,13 +10,6 @@ from pymongo import MongoClient
 #MONGO_URI = "mongodb://localhost:27017/"
 client = pymongo.MongoClient("mongodb://localhost:27017/")
 
-
-#Choosing the database and the collection
-#db = client["mtgdb"]
-#collection = db["cards"]
-
-
-#client = MongoClient("mongodb+srv://Sean:12345@magicdahtebahse.lfcpi.mongodb.net/")
 db = client["localdb"]
 collection = db["allmtgcards"]
 
