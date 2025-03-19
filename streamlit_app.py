@@ -7,8 +7,9 @@ import pymongo
 from pymongo import MongoClient
 
 # MongoDB Connection
-MONGO_URI = "mongodb://localhost:27017/"
-client = MongoClient(MONGO_URI)
+#MONGO_URI = "mongodb://localhost:27017/"
+client = pymongo.MongoClient("mongodb://localhost:27017/")
+
 
 #Choosing the database and the collection
 #db = client["mtgdb"]
