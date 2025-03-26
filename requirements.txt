@@ -4,3 +4,4 @@ pymongo==4.11.3
 matplotlib
 seaborn
 plotly
+datetime
