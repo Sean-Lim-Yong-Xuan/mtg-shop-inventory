@@ -1,26 +1,21 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import datetime
 import pymongo
+import datetime
 from pymongo import MongoClient
 
-#My stuff (19/3/2025)
 # MongoDB Connection
-#MONGO_URI = "mongodb://localhost:27017/"
-client = pymongo.MongoClient("mongodb://localhost:27017/")
+#MONGO_URI = "mongodb+srv://Cluster0:123@cluster0.wi9dl.mongodb.net/"
+MONGO_URI = "mongodb+srv://Shiranui:1234@theproject.lfcpi.mongodb.net/"
+client = MongoClient(MONGO_URI)
 
-db = client["localdb"]
+#Choosing the database and the collection
+db = client["mtgdb"]
 collection = db["allmtgcards"]
 
 # Streamlit App
 st.title("🃏 MTG Card Inventory")
-
-# Fetch Data
-#def load_data():
-    #cards = list(collection.find({}, {"_id":0}))
-    #df = pd.DataFrame(cards)
-    #return df
 
 #df = load_data()
 allmtgcards = list(collection.find({}, {"_id": 0}))  # Exclude ObjectId
@@ -61,6 +56,22 @@ if allmtgcards:
     filtered_df = df.copy()
     if search_query:
         filtered_df = filtered_df[filtered_df["name"].str.contains(search_query, case=False, na=False)]
+        search_data = {
+            "query": search_query,
+            "timestamp": datetime.datetime.utcnow()
+        }
+        collection.insert_one(search_data)  # Store search query in MongoDB Atlas
+        st.success(f"Search query '{search_query}' stored successfully!")
+        # Display past searches
+        st.subheader("Recent Searches")
+        search_history = list(collection.find({}, {"_id": 0}).sort("timestamp", -1).limit(10))  # Get last 10 searches
+        if search_history:
+            for search in search_history:
+                st.write(f"🔎 {search.get('query', 'N/A')} (Searched on: {search.get("timestamp", 'Unknown')})")
+
+        else:
+            st.info("No search history found.")
+            
     if selected_type:
         filtered_df = filtered_df[filtered_df["type"].isin(selected_type)]
     if selected_colors:
