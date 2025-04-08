@@ -11,73 +11,79 @@ client = MongoClient(MONGO_URI)
 db = client["mtgdb"]
 collection = db["allmtgcards"]
 
-# Sidebar Style Menu
-st.sidebar.markdown("### 🗃️ DATABASE")
-page = st.sidebar.radio(" ", ["📇 Card Inventory", "📊 Visualization"], label_visibility="collapsed")
-
-st.sidebar.markdown("### 🧰 SERVICES")
-st.sidebar.markdown("- 🔍 Atlas Search\n- 🔄 Stream Processing\n- 🎯 Triggers\n- 🚚 Migration\n- 🌐 Data Federation")
-
-# Page Title
+# App Title
 st.title("🃏 MTG Card Inventory")
 
-# Load data
+# Fetch data
 allmtgcards = list(collection.find({}, {"_id": 0}))
-if allmtgcards:
-    df = pd.DataFrame(allmtgcards)
-    st.info("Successfully connected to MongoDB!!")
+if not allmtgcards:
+    st.warning("No cards found in the database.")
+    st.stop()
 
-    if page == "📇 Card Inventory":
-        # Filters and Search
-        search_query = st.text_input("Search for a card:", "")
-        card_types = df["type"].dropna().unique().tolist()
-        colors = df["color_identity"].dropna().unique().tolist()
-        power = df["power"].dropna().unique().tolist()
+df = pd.DataFrame(allmtgcards)
+st.success("Connected to MongoDB successfully!")
 
-        selected_type = st.multiselect("Filter by Type:", card_types)
-        selected_colors = st.multiselect("Filter by Color:", colors)
-        selected_power = st.multiselect("Filter by Power:", power)
+# =====================
+# Sidebar — Filter Panel
+# =====================
+st.sidebar.header("🎛️ Filter Cards")
 
-        # Apply filters
-        filtered_df = df.copy()
-        if search_query:
-            filtered_df = filtered_df[filtered_df["name"].str.contains(search_query, case=False, na=False)]
-            search_data = {"query": search_query, "timestamp": datetime.datetime.utcnow()}
-            collection.insert_one(search_data)
-            st.success(f"Search query '{search_query}' stored successfully!")
+search_query = st.sidebar.text_input("Search by Name")
 
-            st.subheader("🔍 Search Trends")
-            pipeline = [
-                {"$group": {"_id": "$query", "count": {"$sum": 1}}},
-                {"$sort": {"_id": 1}}
-            ]
-            search_stats = list(collection.aggregate(pipeline))
-            for entry in search_stats:
-                st.write(f"🔹 **{entry['_id']}** - Searched **{entry['count']}** times")
+card_types = df["type"].dropna().unique().tolist()
+colors = df["color_identity"].dropna().unique().tolist()
+power = df["power"].dropna().unique().tolist()
 
-        if selected_type:
-            filtered_df = filtered_df[filtered_df["type"].isin(selected_type)]
-        if selected_colors:
-            filtered_df = filtered_df[filtered_df["color_identity"].isin(selected_colors)]
-        if selected_power:
-            filtered_df = filtered_df[filtered_df["power"].isin(selected_power)]
+selected_type = st.sidebar.multiselect("Type", card_types)
+selected_colors = st.sidebar.multiselect("Color", colors)
+selected_power = st.sidebar.multiselect("Power", power)
 
-        st.write(f"### Showing {len(filtered_df)} results")
-        st.dataframe(filtered_df)
+# Apply Filters
+filtered_df = df.copy()
 
-    elif page == "📊 Visualization":
-        st.subheader("📊 MTG Card Data Visualization")
-        chart_option = st.selectbox("Select a chart type:", ["Color Identity Distribution", "Type Distribution", "Power Distribution"])
+if search_query:
+    filtered_df = filtered_df[filtered_df["name"].str.contains(search_query, case=False, na=False)]
+    search_data = {
+        "query": search_query,
+        "timestamp": datetime.datetime.utcnow()
+    }
+    collection.insert_one(search_data)
+    st.sidebar.success("Search query stored!")
 
-        if chart_option == "Color Identity Distribution":
-            fig = px.bar(df["color_identity"].value_counts().reset_index(), x="color_identity", y="count", title="Color Identity Distribution")
-        elif chart_option == "Type Distribution":
-            fig = px.bar(df["type"].value_counts().reset_index(), x="type", y="count", title="Type Distribution")
-        elif chart_option == "Power Distribution":
-            power_counts = df["power"].value_counts().reset_index()
-            power_counts.columns = ["power", "count"]
-            fig = px.pie(power_counts, names="power", values="count", title="Power Distribution of Cards")
-        else:
-            st.write("No chart selected.")
+if selected_type:
+    filtered_df = filtered_df[filtered_df["type"].isin(selected_type)]
 
-        st.plotly_chart(fig)
+if selected_colors:
+    filtered_df = filtered_df[filtered_df["color_identity"].isin(selected_colors)]
+
+if selected_power:
+    filtered_df = filtered_df[filtered_df["power"].isin(selected_power)]
+
+# ========================
+# Main Page — Visualization
+# ========================
+st.subheader(f"📋 Showing {len(filtered_df)} Result(s)")
+
+# Display table
+st.dataframe(filtered_df)
+
+# Visualization
+st.subheader("📊 Visualization")
+
+chart_option = st.selectbox("Choose a Chart Type", ["Color Identity Distribution", "Type Distribution", "Power Distribution"])
+
+if chart_option == "Color Identity Distribution":
+    fig = px.bar(filtered_df["color_identity"].value_counts().reset_index(), 
+                 x="color_identity", y="count", title="Color Identity Distribution")
+elif chart_option == "Type Distribution":
+    fig = px.bar(filtered_df["type"].value_counts().reset_index(), 
+                 x="type", y="count", title="Type Distribution")
+elif chart_option == "Power Distribution":
+    power_counts = filtered_df["power"].value_counts().reset_index()
+    power_counts.columns = ["power", "count"]
+    fig = px.pie(power_counts, names="power", values="count", title="Power Distribution")
+else:
+    fig = None
+
+if fig:
+    st.plotly_chart(fig)
