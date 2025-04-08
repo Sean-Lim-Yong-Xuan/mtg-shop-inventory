@@ -8,28 +8,28 @@ from pymongo import MongoClient
 # MongoDB Connection
 MONGO_URI = "mongodb+srv://Shiranui:1234@theproject.lfcpi.mongodb.net/"
 client = MongoClient(MONGO_URI)
-
-# Choosing the database and the collection
 db = client["mtgdb"]
 collection = db["allmtgcards"]
 
-# App Title
+# Sidebar Style Menu
+st.sidebar.markdown("### 🗃️ DATABASE")
+page = st.sidebar.radio(" ", ["📇 Card Inventory", "📊 Visualization"], label_visibility="collapsed")
+
+st.sidebar.markdown("### 🧰 SERVICES")
+st.sidebar.markdown("- 🔍 Atlas Search\n- 🔄 Stream Processing\n- 🎯 Triggers\n- 🚚 Migration\n- 🌐 Data Federation")
+
+# Page Title
 st.title("🃏 MTG Card Inventory")
 
-# Sidebar Navigation
-page = st.sidebar.radio("Go to", ["Card Inventory", "Visualization"])
-
-# Fetching data...
+# Load data
 allmtgcards = list(collection.find({}, {"_id": 0}))
 if allmtgcards:
     df = pd.DataFrame(allmtgcards)
     st.info("Successfully connected to MongoDB!!")
 
-    if page == "Card Inventory":
-        # Search bar
+    if page == "📇 Card Inventory":
+        # Filters and Search
         search_query = st.text_input("Search for a card:", "")
-
-        # Filter options
         card_types = df["type"].dropna().unique().tolist()
         colors = df["color_identity"].dropna().unique().tolist()
         power = df["power"].dropna().unique().tolist()
@@ -42,25 +42,18 @@ if allmtgcards:
         filtered_df = df.copy()
         if search_query:
             filtered_df = filtered_df[filtered_df["name"].str.contains(search_query, case=False, na=False)]
-            search_data = {
-                "query": search_query,
-                "timestamp": datetime.datetime.utcnow()
-            }
-            collection.insert_one(search_data)  # Store search query in MongoDB Atlas
+            search_data = {"query": search_query, "timestamp": datetime.datetime.utcnow()}
+            collection.insert_one(search_data)
             st.success(f"Search query '{search_query}' stored successfully!")
 
-            st.subheader("🔍 Search Trends (Alphabetically Ordered)")
+            st.subheader("🔍 Search Trends")
             pipeline = [
                 {"$group": {"_id": "$query", "count": {"$sum": 1}}},
                 {"$sort": {"_id": 1}}
             ]
             search_stats = list(collection.aggregate(pipeline))
-
-            if search_stats:
-                for entry in search_stats:
-                    st.write(f"🔹 **{entry['_id']}** - Searched **{entry['count']}** times")
-            else:
-                st.info("No search history found.")
+            for entry in search_stats:
+                st.write(f"🔹 **{entry['_id']}** - Searched **{entry['count']}** times")
 
         if selected_type:
             filtered_df = filtered_df[filtered_df["type"].isin(selected_type)]
@@ -72,9 +65,8 @@ if allmtgcards:
         st.write(f"### Showing {len(filtered_df)} results")
         st.dataframe(filtered_df)
 
-    elif page == "Visualization":
-        # Use filtered data from df (if needed, you can persist filters using session state)
-        st.subheader("📊 Visualization")
+    elif page == "📊 Visualization":
+        st.subheader("📊 MTG Card Data Visualization")
         chart_option = st.selectbox("Select a chart type:", ["Color Identity Distribution", "Type Distribution", "Power Distribution"])
 
         if chart_option == "Color Identity Distribution":
